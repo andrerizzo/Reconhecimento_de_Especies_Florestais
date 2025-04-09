@@ -92,4 +92,5 @@ if arquivo:
     st.table(df_top5)
 
     # Tempo
-    st.markdown(f"⏱️ **Tempo total de inferência:** `{tempo
+    st.markdown(f"⏱️ **Tempo total de inferência:** `{tempo_total:.4f} segundos`")
+
