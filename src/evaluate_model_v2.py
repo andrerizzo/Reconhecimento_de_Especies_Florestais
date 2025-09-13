@@ -249,6 +249,6 @@ def evaluate_model(model, history, test_dataset, class_names, run_name="model_ev
         mlflow.log_metric("test_pr_auc", pr_auc)
 
         # 8. Salvar modelo
-        mlflow.tensorflow.log_model(model, "model")
+        mlflow.keras.log_model(model, "model")
 
         print("✅ Avaliação concluída e logada no MLflow.")
