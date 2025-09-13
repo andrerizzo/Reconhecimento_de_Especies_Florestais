@@ -6,6 +6,7 @@ Módulo de avaliação e logging no MLflow.
 Deve ser chamado após o treinamento com train_model().
 """
 
+from xml.parsers.expat import model
 import matplotlib.pyplot as plt
 import numpy as np
 import mlflow
@@ -249,6 +250,12 @@ def evaluate_model(model, history, test_dataset, class_names, run_name="model_ev
         mlflow.log_metric("test_pr_auc", pr_auc)
 
         # 8. Salvar modelo
-        mlflow.keras.log_model(model, "model")
+        # 8. Salvar modelo no Google Drive
+        gdrive_path = "/content/drive/MyDrive/modelos/MobileNetv3_small_v1.keras"
+        model.save(gdrive_path)
+
+        # Registrar no MLflow apenas o caminho
+        mlflow.log_param("modelo_path_gdrive", gdrive_path)
+        #mlflow.keras.log_model(model, "model")
 
         print("✅ Avaliação concluída e logada no MLflow.")
