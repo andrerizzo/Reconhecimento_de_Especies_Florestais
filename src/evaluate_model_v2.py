@@ -6,11 +6,9 @@ Módulo de avaliação e logging no MLflow.
 Deve ser chamado após o treinamento com train_model().
 """
 
-from xml.parsers.expat import model
 import matplotlib.pyplot as plt
 import numpy as np
 import mlflow
-import mlflow.tensorflow
 import dagshub
 from sklearn.metrics import (classification_report, confusion_matrix, ConfusionMatrixDisplay,
                              accuracy_score, precision_score, recall_score, f1_score,
@@ -18,6 +16,9 @@ from sklearn.metrics import (classification_report, confusion_matrix, ConfusionM
                              roc_curve, precision_recall_curve)
 import io
 import contextlib
+import json
+import pandas as pd
+import os
 
 
 # =======================================================
@@ -109,6 +110,14 @@ def log_training_history(history):
     plt.close()
     mlflow.log_artifact("training_history.png")
 
+    # Também salvar como JSON e CSV (para MLflow)
+    with open("training_history.json", "w") as f:
+        json.dump(history.history, f)
+    mlflow.log_artifact("training_history.json")
+
+    pd.DataFrame(history.history).to_csv("training_history.csv", index=False)
+    mlflow.log_artifact("training_history.csv")
+
 
 # =======================================================
 # Log do resumo do modelo
@@ -162,7 +171,7 @@ def evaluate_model(model, history, test_dataset, class_names, run_name="model_ev
         # Log do resumo do modelo
         log_model_summary(model)
 
-        # 1. Log histórico
+        # 1. Log histórico (imagem + dados)
         log_training_history(history)
 
         # 2. Predições
@@ -249,13 +258,29 @@ def evaluate_model(model, history, test_dataset, class_names, run_name="model_ev
         mlflow.log_metric("test_roc_auc", roc_auc)
         mlflow.log_metric("test_pr_auc", pr_auc)
 
-        # 8. Salvar modelo
-        # 8. Salvar modelo no Google Drive
-        gdrive_path = "/content/drive/MyDrive/modelos/MobileNetv3_small_v1.keras"
-        model.save(gdrive_path)
+        # 8. Salvar modelo + history no Google Drive
+        gdrive_dir = "/content/drive/MyDrive/modelos"
+        os.makedirs(gdrive_dir, exist_ok=True)
 
-        # Registrar no MLflow apenas o caminho
-        mlflow.log_param("modelo_path_gdrive", gdrive_path)
-        #mlflow.keras.log_model(model, "model")
+        gdrive_model_path = f"{gdrive_dir}/MobileNetv3_small_v1.keras"
+        model.save(gdrive_model_path)
 
-        print("✅ Avaliação concluída e logada no MLflow.")
+        hist_json = f"{gdrive_dir}/MobileNetv3_small_v1_history.json"
+        hist_csv = f"{gdrive_dir}/MobileNetv3_small_v1_history.csv"
+
+        with open(hist_json, "w") as f:
+            json.dump(history.history, f)
+        pd.DataFrame(history.history).to_csv(hist_csv, index=False)
+
+        # Registrar caminhos no MLflow
+        mlflow.log_param("modelo_path_gdrive", gdrive_model_path)
+        mlflow.log_param("history_json_gdrive", hist_json)
+        mlflow.log_param("history_csv_gdrive", hist_csv)
+
+        with open("model_path.txt", "w") as f:
+            f.write(gdrive_model_path)
+        mlflow.log_artifact("model_path.txt")
+
+        print(f"Modelo salvo no Google Drive em: {gdrive_model_path}")
+        print(f"History salvo no Google Drive em: {hist_json} e {hist_csv}")
+        print("Caminhos registrados no MLflow (DagsHub)")
