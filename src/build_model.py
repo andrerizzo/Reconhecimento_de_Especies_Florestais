@@ -16,8 +16,8 @@ from keras.losses import CategoricalCrossentropy, CategoricalFocalCrossentropy
 
 
 
-# Carrega o modelo MobileNetV2 removendo as camadas densas
-def build_model_mobilenetv2(formato_imagem=(224,224,3), num_classes=41):
+# Carrega o modelo MobileNetV2_v1 removendo as camadas densas
+def build_model_mobilenetV2_v1(formato_imagem=(224,224,3), num_classes=41):
   '''
     Modelo base: MobileNetV2
     Camadas convolucionais: Todas congeladas
@@ -31,7 +31,7 @@ def build_model_mobilenetv2(formato_imagem=(224,224,3), num_classes=41):
 
   '''
 
-  # Carrega o modelo MobileNetV3 Large removendo as camadas densas
+  # Carrega o modelo MobileNetV2 removendo as camadas densas
   base_model = MobileNetV2(weights='imagenet',
                            include_top=False,
                            input_shape=formato_imagem)
@@ -51,15 +51,15 @@ def build_model_mobilenetv2(formato_imagem=(224,224,3), num_classes=41):
   # Camada de saída com 41 neurônios, isto é, um para cada espécie de madeira
   classifier = Dense(num_classes, activation="softmax")(x)
 
-  model_mobilenetv2 = Model(inputs=base_model.inputs, outputs=classifier)
+  model_mobilenetV2_v1 = Model(inputs=base_model.inputs, outputs=classifier)
 
-  return model_mobilenetv2
+  return model_mobilenetV2_v1
 
 
-
-def build_model_mobilenetv3_large_v2(formato_imagem=(224,224,3), num_classes=41):
+# Carrega o modelo MobileNetV2_v2 removendo as camadas densas
+def build_model_mobilenetV2_v2(formato_imagem=(224,224,3), num_classes=41):
   '''
-    Modelo base: MobileNetV3 Large
+    Modelo base: MobileNetV2
     Camadas convolucionais: 20 últimas descongeladas
     Classificador: 
               GlobalAveragePooling2D()
@@ -71,8 +71,8 @@ def build_model_mobilenetv3_large_v2(formato_imagem=(224,224,3), num_classes=41)
 
   '''
 
-  # Carrega o modelo MobileNetV3 Large removendo as camadas densas
-  base_model = MobileNetV3Large(weights='imagenet',
+  # Carrega o modelo MobileNetV2 removendo as camadas densas
+  base_model = MobileNetV2(weights='imagenet',
                            include_top=False,
                            input_shape=formato_imagem)
 
@@ -91,11 +91,9 @@ def build_model_mobilenetv3_large_v2(formato_imagem=(224,224,3), num_classes=41)
   # Camada de saída com 41 neurônios, isto é, um para cada espécie de madeira
   classifier = Dense(num_classes, activation="softmax")(x)
 
-  model_mobilenetv3_large_v2 = Model(inputs=base_model.inputs, outputs=classifier)
+  model_mobilenetV2_v2 = Model(inputs=base_model.inputs, outputs=classifier)
 
-  return model_mobilenetv3_large_v2
-
-
+  return model_mobilenetV2_v2
 
 
 def build_model_mobilenetv3_large_v1(formato_imagem=(224,224,3), num_classes=41):
@@ -181,7 +179,7 @@ def build_model_mobilenetv3_large_v2(formato_imagem=(224,224,3), num_classes=41)
 def build_model_mobilenetv3_small_v1(formato_imagem=(224,224,3), num_classes=41):
   '''
     Modelo base: MobileNetV3 Small
-    Camadas convolucionais: 20 últimas descongeladas
+    Camadas convolucionais: Todas as camadas convolucionais congeladas
     Classificador: 
               GlobalAveragePooling2D()
               Dense(512, activation="relu")
@@ -198,8 +196,8 @@ def build_model_mobilenetv3_small_v1(formato_imagem=(224,224,3), num_classes=41)
                            input_shape=formato_imagem)
 
   # Mantém todas as camadas convolucionais congeladas
-  for layer in base_model.layers[-20:]:
-    layer.trainable = True
+  for layer in base_model.layers:
+    layer.trainable = False
   
   # Criação de duas camadas densas com 512 e 254 neurônios respectivamente
   x = base_model.output
@@ -215,6 +213,49 @@ def build_model_mobilenetv3_small_v1(formato_imagem=(224,224,3), num_classes=41)
   model_mobilenetv3_small_v1 = Model(inputs=base_model.inputs, outputs=classifier)
 
   return model_mobilenetv3_small_v1
+
+
+
+def build_model_mobilenetv3_small_v2(formato_imagem=(224,224,3), num_classes=41):
+  '''
+    Modelo base: MobileNetV3 Small
+    Camadas convolucionais: 20 últimas descongeladas
+    Classificador: 
+              GlobalAveragePooling2D()
+              Dense(512, activation="relu")
+              Dropout(0.5)
+              Dense(256, activation="relu")
+              Dropout(0.4)
+              Dense(41, activation="softmax")
+
+  '''
+
+  # Carrega o modelo MobileNetV3 Large removendo as camadas densas
+  base_model = MobileNetV3Small(weights='imagenet',
+                           include_top=False,
+                           input_shape=formato_imagem)
+
+  # Descongela as 20 últimas camadas convolucionais
+  for layer in base_model.layers[-20:]:
+    layer.trainable = True
+  
+  # Criação de duas camadas densas com 512 e 254 neurônios respectivamente
+  x = base_model.output
+  x = GlobalAveragePooling2D()(x)
+  x = Dense(512, activation="relu")(x)
+  x = Dropout(0.5)(x)
+  x = Dense(256, activation="relu")(x)
+  x = Dropout(0.4)(x)
+
+  # Camada de saída com 41 neurônios, isto é, um para cada espécie de madeira
+  classifier = Dense(num_classes, activation="softmax")(x)
+
+  model_mobilenetv3_small_v2 = Model(inputs=base_model.inputs, outputs=classifier)
+
+  return model_mobilenetv3_small_v2
+
+
+
 
 
 
