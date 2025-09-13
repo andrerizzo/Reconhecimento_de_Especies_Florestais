@@ -15,6 +15,8 @@ from sklearn.metrics import (classification_report, confusion_matrix, ConfusionM
                              accuracy_score, precision_score, recall_score, f1_score,
                              roc_auc_score, average_precision_score,
                              roc_curve, precision_recall_curve)
+import io
+import contextlib
 
 
 # =======================================================
@@ -108,7 +110,32 @@ def log_training_history(history):
 
 
 # =======================================================
-# Avaliação completa com logging automático de parâmetros
+# Log do resumo do modelo
+# =======================================================
+def log_model_summary(model):
+    # Captura o resumo como string
+    stream = io.StringIO()
+    with contextlib.redirect_stdout(stream):
+        model.summary()
+    summary_str = stream.getvalue()
+
+    # Salva como TXT
+    with open("model_summary.txt", "w") as f:
+        f.write(summary_str)
+    mlflow.log_artifact("model_summary.txt")
+
+    # Salva também como PNG (texto renderizado)
+    plt.figure(figsize=(12, 0.3 * len(summary_str.splitlines())))
+    plt.axis("off")
+    plt.text(0.01, 0.99, summary_str, {"fontsize": 8}, fontproperties="monospace", va="top")
+    plt.title("Model Summary", fontsize=12)
+    plt.savefig("model_summary.png", dpi=300, bbox_inches="tight")
+    plt.close()
+    mlflow.log_artifact("model_summary.png")
+
+
+# =======================================================
+# Avaliação completa com logging automático
 # =======================================================
 def evaluate_model(model, history, test_dataset, class_names, run_name="model_eval", tags: dict = None):
     """
@@ -130,6 +157,9 @@ def evaluate_model(model, history, test_dataset, class_names, run_name="model_ev
         # Extração automática de parâmetros
         params = extract_model_params(model, history)
         mlflow.log_params(params)
+
+        # Log do resumo do modelo
+        log_model_summary(model)
 
         # 1. Log histórico
         log_training_history(history)
