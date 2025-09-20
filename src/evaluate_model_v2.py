@@ -108,15 +108,15 @@ def log_training_history(history):
     plt.tight_layout()
     plt.savefig("training_history.png", dpi=300, bbox_inches="tight")
     plt.close()
-    mlflow.log_artifact("graphs/training_history.png")
+    mlflow.log_artifact("training_history.png", artifact_path="graphs")
 
     # Também salvar como JSON e CSV (para MLflow)
     with open("training_history.json", "w") as f:
         json.dump(history.history, f)
-    mlflow.log_artifact("reports/training_history.json")
+    mlflow.log_artifact("training_history.json", artifact_path="reports")
 
     pd.DataFrame(history.history).to_csv("training_history.csv", index=False)
-    mlflow.log_artifact("reports/training_history.csv")
+    mlflow.log_artifact("training_history.csv", artifact_path="reports")
 
 
 # =======================================================
@@ -169,7 +169,7 @@ def evaluate_model(model, history, test_dataset, class_names, run_name="model_ev
         # TXT
         with open("classification_report.txt", "w") as f:
             f.write(report_text)
-        mlflow.log_artifact("reports/classification_report.txt")
+        mlflow.log_artifact("classification_report.txt", artifact_path="reports")
 
         
         # 4. Matriz de Confusão
@@ -197,7 +197,7 @@ def evaluate_model(model, history, test_dataset, class_names, run_name="model_ev
         plt.legend(loc="lower right")
         plt.savefig("roc_auc_curve.png", dpi=300, bbox_inches="tight")
         plt.close()
-        mlflow.log_artifact("graphs/roc_auc_curve.png")
+        mlflow.log_artifact("roc_auc_curve.png", artifact_path="graphs")
 
         # 6. PR
         plt.figure(figsize=(8, 6))
@@ -210,7 +210,7 @@ def evaluate_model(model, history, test_dataset, class_names, run_name="model_ev
         plt.legend(loc="lower left")
         plt.savefig("pr_auc_curve.png", dpi=300, bbox_inches="tight")
         plt.close()
-        mlflow.log_artifact("graphs/pr_auc_curve.png")
+        mlflow.log_artifact("pr_auc_curve.png", artifact_path="graphs")
 
         # 7. Métricas
         acc = accuracy_score(y_true, y_pred)
@@ -228,28 +228,29 @@ def evaluate_model(model, history, test_dataset, class_names, run_name="model_ev
         mlflow.log_metric("test_pr_auc", pr_auc)
 
         # 8. Salvar modelo + history no Google Drive
-        gdrive_dir = "/content/drive/MyDrive/modelos"
-        os.makedirs(gdrive_dir, exist_ok=True)
+        if input("Quer salvar o modelo e history no Google Drive (S/N) ?").strip().upper() == "S":
+            gdrive_dir = "/content/drive/MyDrive/modelos"
+            os.makedirs(gdrive_dir, exist_ok=True)
 
-        gdrive_model_path = f"{gdrive_dir}/MobileNetv3_small_v1.keras"
-        model.save(gdrive_model_path)
+            gdrive_model_path = f"{gdrive_dir}/MobileNetv3_small_v1.keras"
+            model.save(gdrive_model_path)
 
-        hist_json = f"{gdrive_dir}/MobileNetv3_small_v1_history.json"
-        hist_csv = f"{gdrive_dir}/MobileNetv3_small_v1_history.csv"
+            hist_json = f"{gdrive_dir}/MobileNetv3_small_v1_history.json"
+            hist_csv = f"{gdrive_dir}/MobileNetv3_small_v1_history.csv"
 
-        with open(hist_json, "w") as f:
-            json.dump(history.history, f)
-        pd.DataFrame(history.history).to_csv(hist_csv, index=False)
+            with open(hist_json, "w") as f:
+                json.dump(history.history, f)
+            pd.DataFrame(history.history).to_csv(hist_csv, index=False)
 
-        # Registrar caminhos no MLflow
-        mlflow.log_param("modelo_path_gdrive", gdrive_model_path)
-        mlflow.log_param("history_json_gdrive", hist_json)
-        mlflow.log_param("history_csv_gdrive", hist_csv)
+            # Registrar caminhos no MLflow
+            mlflow.log_param("modelo_path_gdrive", gdrive_model_path)
+            mlflow.log_param("history_json_gdrive", hist_json)
+            mlflow.log_param("history_csv_gdrive", hist_csv)
 
-        with open("model_path.txt", "w") as f:
-            f.write(gdrive_model_path)
-        mlflow.log_artifact("model_path.txt")
+            with open("model_path.txt", "w") as f:
+                f.write(gdrive_model_path)
+            mlflow.log_artifact("model_path.txt")
 
-        print(f"Modelo salvo no Google Drive em: {gdrive_model_path}")
-        print(f"History salvo no Google Drive em: {hist_json} e {hist_csv}")
-        print("Caminhos registrados no MLflow (DagsHub)")
+            print(f"Modelo salvo no Google Drive em: {gdrive_model_path}")
+            print(f"History salvo no Google Drive em: {hist_json} e {hist_csv}")
+            print("Caminhos registrados no MLflow (DagsHub)")
