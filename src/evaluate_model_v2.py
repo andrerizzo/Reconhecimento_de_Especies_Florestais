@@ -108,40 +108,15 @@ def log_training_history(history):
     plt.tight_layout()
     plt.savefig("training_history.png", dpi=300, bbox_inches="tight")
     plt.close()
-    mlflow.log_artifact("training_history.png")
+    mlflow.log_artifact("graphs/training_history.png")
 
     # Também salvar como JSON e CSV (para MLflow)
     with open("training_history.json", "w") as f:
         json.dump(history.history, f)
-    mlflow.log_artifact("training_history.json")
+    mlflow.log_artifact("reports/training_history.json")
 
     pd.DataFrame(history.history).to_csv("training_history.csv", index=False)
-    mlflow.log_artifact("training_history.csv")
-
-
-# =======================================================
-# Log do resumo do modelo
-# =======================================================
-def log_model_summary(model):
-    # Captura o resumo como string
-    stream = io.StringIO()
-    with contextlib.redirect_stdout(stream):
-        model.summary()
-    summary_str = stream.getvalue()
-
-    # Salva como TXT
-    with open("model_summary.txt", "w") as f:
-        f.write(summary_str)
-    mlflow.log_artifact("model_summary.txt")
-
-    # Salva também como PNG (texto renderizado)
-    plt.figure(figsize=(12, 0.3 * len(summary_str.splitlines())))
-    plt.axis("off")
-    plt.text(0.01, 0.99, summary_str, {"fontsize": 8}, fontproperties="monospace", va="top")
-    plt.title("Model Summary", fontsize=12)
-    plt.savefig("model_summary.png", dpi=300, bbox_inches="tight")
-    plt.close()
-    mlflow.log_artifact("model_summary.png")
+    mlflow.log_artifact("reports/training_history.csv")
 
 
 # =======================================================
@@ -194,19 +169,13 @@ def evaluate_model(model, history, test_dataset, class_names, run_name="model_ev
         # TXT
         with open("classification_report.txt", "w") as f:
             f.write(report_text)
-        mlflow.log_artifact("classification_report.txt")
+        mlflow.log_artifact("reports/classification_report.txt")
 
-        # PNG (texto renderizado)
-        plt.figure(figsize=(10, 0.5 * len(class_names) + 4))
-        plt.axis("off")
-        plt.text(0.01, 0.99, report_text, {'fontsize': 10}, fontproperties="monospace", va="top")
-        plt.title("Classification Report", fontsize=14)
-        plt.savefig("classification_report.png", dpi=300, bbox_inches="tight")
-        plt.close()
-        mlflow.log_artifact("classification_report.png")
-
+        
         # 4. Matriz de Confusão
         cm = confusion_matrix(y_true, y_pred)
+        plt.figure(figsize=(20, 12))
+        plt.xticks(rotation=45, ha='right')
         disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
         disp.plot(cmap=plt.cm.Blues)
         plt.title("Matriz de Confusão")
@@ -214,7 +183,7 @@ def evaluate_model(model, history, test_dataset, class_names, run_name="model_ev
         cm_file = "confusion_matrix.png"
         plt.savefig(cm_file, dpi=300, bbox_inches="tight")
         plt.close()
-        mlflow.log_artifact(cm_file)
+        mlflow.log_artifact("graphs/" + cm_file)
 
         # 5. ROC
         plt.figure(figsize=(8, 6))
@@ -228,7 +197,7 @@ def evaluate_model(model, history, test_dataset, class_names, run_name="model_ev
         plt.legend(loc="lower right")
         plt.savefig("roc_auc_curve.png", dpi=300, bbox_inches="tight")
         plt.close()
-        mlflow.log_artifact("roc_auc_curve.png")
+        mlflow.log_artifact("graphs/roc_auc_curve.png")
 
         # 6. PR
         plt.figure(figsize=(8, 6))
@@ -241,7 +210,7 @@ def evaluate_model(model, history, test_dataset, class_names, run_name="model_ev
         plt.legend(loc="lower left")
         plt.savefig("pr_auc_curve.png", dpi=300, bbox_inches="tight")
         plt.close()
-        mlflow.log_artifact("pr_auc_curve.png")
+        mlflow.log_artifact("graphs/pr_auc_curve.png")
 
         # 7. Métricas
         acc = accuracy_score(y_true, y_pred)
