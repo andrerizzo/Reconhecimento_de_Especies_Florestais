@@ -122,7 +122,7 @@ def log_training_history(history):
 # =======================================================
 # Avaliação completa com logging automático
 # =======================================================
-def evaluate_model(model, history, test_dataset, class_names, run_name="model_eval", tags: dict = None):
+def evaluate_model(model, history, test_dataset, class_names, run_name="model_eval", tags: dict = None, salvar_no_gdrive=False):
     """
     Avalia modelo treinado, gera gráficos e logs no MLflow.
 
@@ -171,7 +171,7 @@ def evaluate_model(model, history, test_dataset, class_names, run_name="model_ev
         
         # 4. Matriz de Confusão
         cm = confusion_matrix(y_true, y_pred)
-        plt.figure(figsize=(20, 12))
+        plt.figure(figsize=(16, 8))
         plt.xticks(rotation=45, ha='right')
         disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
         disp.plot(cmap=plt.cm.Blues)
@@ -180,7 +180,7 @@ def evaluate_model(model, history, test_dataset, class_names, run_name="model_ev
         cm_file = "confusion_matrix.png"
         plt.savefig(cm_file, dpi=300, bbox_inches="tight")
         plt.close()
-        mlflow.log_artifact("graphs/" + cm_file)
+        mlflow.log_artifact(cm_file, artifact_path="graphs")
 
         # 5. ROC
         plt.figure(figsize=(8, 6))
@@ -225,7 +225,7 @@ def evaluate_model(model, history, test_dataset, class_names, run_name="model_ev
         mlflow.log_metric("test_pr_auc", pr_auc)
 
         # 8. Salvar modelo + history no Google Drive
-        if input("Quer salvar o modelo e history no Google Drive (S/N) ?").strip().upper() == "S":
+        if salvar_no_gdrive:
             gdrive_dir = "/content/drive/MyDrive/modelos"
             os.makedirs(gdrive_dir, exist_ok=True)
 
