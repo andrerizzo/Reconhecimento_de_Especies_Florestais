@@ -19,6 +19,7 @@ import contextlib
 import json
 import pandas as pd
 import os
+import seaborn as sns
 
 
 # =======================================================
@@ -29,10 +30,10 @@ dagshub.init(repo_owner='andrerizzo', repo_name='wood-species-recognition', mlfl
 EXPERIMENT_NAME = "wood-species-experiments"
 exp = mlflow.get_experiment_by_name(EXPERIMENT_NAME)
 if exp is None:
-    print(f"🔧 Criando novo experimento: {EXPERIMENT_NAME}")
+    print(f"Criando novo experimento: {EXPERIMENT_NAME}")
     mlflow.create_experiment(EXPERIMENT_NAME)
 else:
-    print(f"✅ Usando experimento existente: {EXPERIMENT_NAME}")
+    print(f"Usando experimento existente: {EXPERIMENT_NAME}")
 mlflow.set_experiment(EXPERIMENT_NAME)
 
 
@@ -44,7 +45,7 @@ def extract_model_params(model, history):
 
     # Informações do History (treino)
     if hasattr(history, "params"):
-        params.update(history.params)  # inclui epochs, steps, batch_size etc.
+        params.update(history.params)
 
     # Otimizador
     if hasattr(model, "optimizer") and hasattr(model.optimizer, "get_config"):
@@ -110,7 +111,6 @@ def log_training_history(history):
     plt.close()
     mlflow.log_artifact("training_history.png", artifact_path="graphs")
 
-    # Também salvar como JSON e CSV (para MLflow)
     with open("training_history.json", "w") as f:
         json.dump(history.history, f)
     mlflow.log_artifact("training_history.json", artifact_path="reports")
@@ -120,69 +120,90 @@ def log_training_history(history):
 
 
 # =======================================================
+# Funções auxiliares: análises de confusões
+# =======================================================
+def top_confusions(y_true, y_pred, classes, top_n=10):
+    cm = confusion_matrix(y_true, y_pred, labels=range(len(classes)))
+    confusoes = []
+    for i, real in enumerate(classes):
+        for j, pred in enumerate(classes):
+            if i != j and cm[i, j] > 0:
+                confusoes.append((real, pred, cm[i, j]))
+    confusoes_sorted = sorted(confusoes, key=lambda x: x[2], reverse=True)[:top_n]
+    return pd.DataFrame(confusoes_sorted, columns=["Classe Real", "Classe Predita", "Quantidade"])
+
+
+def log_top_confusions(y_true, y_pred, class_names, salvar_no_gdrive=False, gdrive_dir=None):
+    # ---------- Tabela Top 10 ----------
+    df_top10 = top_confusions(y_true, y_pred, class_names, top_n=10)
+    df_top10.to_csv("top10_confusoes.csv", index=False)
+    df_top10.to_string(open("top10_confusoes.txt", "w"))
+    mlflow.log_artifact("top10_confusoes.csv", artifact_path="reports")
+    mlflow.log_artifact("top10_confusoes.txt", artifact_path="reports")
+
+    # ---------- Gráfico de Barras Top 10 ----------
+    df_top10["Confusão"] = df_top10["Classe Real"] + " → " + df_top10["Classe Predita"]
+    df_top10_sorted = df_top10.sort_values("Quantidade", ascending=True)
+    plt.figure(figsize=(10, 6))
+    sns.barplot(x="Quantidade", y="Confusão", data=df_top10_sorted, palette="Blues_d")
+    plt.xlabel("Quantidade de Erros")
+    plt.ylabel("Confusão (Real → Predita)")
+    plt.title("Top 10 Confusões")
+    plt.tight_layout()
+    plt.savefig("top10_confusoes_bar.png", dpi=300, bbox_inches="tight")
+    plt.close()
+    mlflow.log_artifact("top10_confusoes_bar.png", artifact_path="graphs")
+
+    # ---------- Heatmap Top 20 ----------
+    df_top20 = top_confusions(y_true, y_pred, class_names, top_n=20)
+    pivot = df_top20.pivot(index="Classe Real", columns="Classe Predita", values="Quantidade").fillna(0)
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(pivot, annot=True, fmt=".0f", cmap="Reds", cbar=True)
+    plt.title("Mapa de Calor - Top 20 Erros de Classificação")
+    plt.ylabel("Classe Real")
+    plt.xlabel("Classe Predita")
+    plt.tight_layout()
+    plt.savefig("top20_confusoes_heatmap.png", dpi=300, bbox_inches="tight")
+    plt.close()
+    mlflow.log_artifact("top20_confusoes_heatmap.png", artifact_path="graphs")
+
+
+
+
+# =======================================================
 # Avaliação completa com logging automático
 # =======================================================
 def evaluate_model(model, history, test_dataset, class_names, run_name="model_eval", tags: dict = None, salvar_no_gdrive=False):
-    """
-    Avalia modelo treinado, gera gráficos e logs no MLflow.
-
-    Args:
-        model (tf.keras.Model): modelo treinado
-        history (keras.callbacks.History): histórico do treinamento
-        test_dataset (tf.data.Dataset): dataset de teste
-        class_names (list): lista de classes
-        run_name (str): nome do run no MLflow
-        tags (dict, opcional): dicionário de tags a registrar no MLflow
-    """
     with mlflow.start_run(run_name=run_name):
-        # Se houver tags, registra
         if tags:
             mlflow.set_tags(tags)
 
-        # Extração automática de parâmetros
         params = extract_model_params(model, history)
         mlflow.log_params(params)
 
-        # 1. Log histórico (imagem + dados)
+        # Histórico de treino
         log_training_history(history)
 
-        # 2. Predições
+        # Predições
         y_true, y_pred, y_score = [], [], []
         for images, labels in test_dataset:
             preds = model.predict(images, verbose=0)
             y_score.extend(preds)
             y_pred.extend(np.argmax(preds, axis=1))
-
-            if labels.shape[-1] == len(class_names):  
+            if labels.shape[-1] == len(class_names):
                 y_true.extend(np.argmax(labels.numpy(), axis=1))
             else:
                 y_true.extend(labels.numpy())
-
         y_true, y_pred, y_score = np.array(y_true), np.array(y_pred), np.array(y_score)
 
-        # 3. Classification Report (txt + png simples)
+        # Classification Report
         report_text = classification_report(y_true, y_pred, target_names=class_names)
-
-        # TXT
         with open("classification_report.txt", "w") as f:
             f.write(report_text)
         mlflow.log_artifact("classification_report.txt", artifact_path="reports")
 
         
-        # 4. Matriz de Confusão
-        cm = confusion_matrix(y_true, y_pred)
-        plt.figure(figsize=(16, 8))
-        plt.xticks(rotation=45, ha='right')
-        disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
-        disp.plot(cmap=plt.cm.Blues)
-        plt.title("Matriz de Confusão")
-
-        cm_file = "confusion_matrix.png"
-        plt.savefig(cm_file, dpi=300, bbox_inches="tight")
-        plt.close()
-        mlflow.log_artifact(cm_file, artifact_path="graphs")
-
-        # 5. ROC
+        # ROC
         plt.figure(figsize=(8, 6))
         for i, class_name in enumerate(class_names):
             fpr, tpr, _ = roc_curve(y_true == i, y_score[:, i])
@@ -196,7 +217,7 @@ def evaluate_model(model, history, test_dataset, class_names, run_name="model_ev
         plt.close()
         mlflow.log_artifact("roc_auc_curve.png", artifact_path="graphs")
 
-        # 6. PR
+        # PR
         plt.figure(figsize=(8, 6))
         for i, class_name in enumerate(class_names):
             precision, recall, _ = precision_recall_curve(y_true == i, y_score[:, i])
@@ -209,14 +230,13 @@ def evaluate_model(model, history, test_dataset, class_names, run_name="model_ev
         plt.close()
         mlflow.log_artifact("pr_auc_curve.png", artifact_path="graphs")
 
-        # 7. Métricas
+        # Métricas
         acc = accuracy_score(y_true, y_pred)
         prec = precision_score(y_true, y_pred, average='weighted')
         rec = recall_score(y_true, y_pred, average='weighted')
         f1 = f1_score(y_true, y_pred, average='weighted')
         roc_auc = roc_auc_score(y_true, y_score, multi_class='ovr')
         pr_auc = average_precision_score(y_true, y_score, average="weighted")
-
         mlflow.log_metric("test_accuracy", acc)
         mlflow.log_metric("test_precision", prec)
         mlflow.log_metric("test_recall", rec)
@@ -224,30 +244,23 @@ def evaluate_model(model, history, test_dataset, class_names, run_name="model_ev
         mlflow.log_metric("test_roc_auc", roc_auc)
         mlflow.log_metric("test_pr_auc", pr_auc)
 
-        # 8. Salvar modelo + history no Google Drive
+        # Modelo + history no GDrive
         if salvar_no_gdrive:
-            gdrive_dir = "/content/drive/MyDrive/modelos"
             os.makedirs(gdrive_dir, exist_ok=True)
-
             gdrive_model_path = f"{gdrive_dir}/MobileNetv3_small_v1.keras"
             model.save(gdrive_model_path)
-
             hist_json = f"{gdrive_dir}/MobileNetv3_small_v1_history.json"
             hist_csv = f"{gdrive_dir}/MobileNetv3_small_v1_history.csv"
-
             with open(hist_json, "w") as f:
                 json.dump(history.history, f)
             pd.DataFrame(history.history).to_csv(hist_csv, index=False)
-
-            # Registrar caminhos no MLflow
             mlflow.log_param("modelo_path_gdrive", gdrive_model_path)
             mlflow.log_param("history_json_gdrive", hist_json)
             mlflow.log_param("history_csv_gdrive", hist_csv)
-
             with open("model_path.txt", "w") as f:
                 f.write(gdrive_model_path)
             mlflow.log_artifact("model_path.txt")
-
             print(f"Modelo salvo no Google Drive em: {gdrive_model_path}")
             print(f"History salvo no Google Drive em: {hist_json} e {hist_csv}")
             print("Caminhos registrados no MLflow (DagsHub)")
+
