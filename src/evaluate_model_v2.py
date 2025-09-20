@@ -143,9 +143,6 @@ def evaluate_model(model, history, test_dataset, class_names, run_name="model_ev
         params = extract_model_params(model, history)
         mlflow.log_params(params)
 
-        # Log do resumo do modelo
-        log_model_summary(model)
-
         # 1. Log histórico (imagem + dados)
         log_training_history(history)
 
