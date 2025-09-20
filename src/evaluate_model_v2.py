@@ -245,25 +245,26 @@ def evaluate_model(model, history, test_dataset, class_names, run_name="model_ev
         mlflow.log_metric("test_pr_auc", pr_auc)
 
         # Modelo + history no GDrive
-        if salvar_no_gdrive:
-            os.makedirs(gdrive_dir, exist_ok=True)
-            gdrive_model_path = f"{gdrive_dir}/MobileNetv3_small_v1.keras"
-            model.save(gdrive_model_path)
-            hist_json = f"{gdrive_dir}/MobileNetv3_small_v1_history.json"
-            hist_csv = f"{gdrive_dir}/MobileNetv3_small_v1_history.csv"
-            with open(hist_json, "w") as f:
-                json.dump(history.history, f)
-            pd.DataFrame(history.history).to_csv(hist_csv, index=False)
-            mlflow.log_param("modelo_path_gdrive", gdrive_model_path)
-            mlflow.log_param("history_json_gdrive", hist_json)
-            mlflow.log_param("history_csv_gdrive", hist_csv)
-            with open("model_path.txt", "w") as f:
-                f.write(gdrive_model_path)
-            mlflow.log_artifact("model_path.txt")
-            print(f"Modelo salvo no Google Drive em: {gdrive_model_path}")
-            print(f"History salvo no Google Drive em: {hist_json} e {hist_csv}")
-            print("Caminhos registrados no MLflow (DagsHub)")
+        #if salvar_no_gdrive:
+        #    os.makedirs(gdrive_dir, exist_ok=True)
+        #    gdrive_model_path = f"{gdrive_dir}/MobileNetv3_small_v1.keras"
+        #    model.save(gdrive_model_path)
+        #    hist_json = f"{gdrive_dir}/MobileNetv3_small_v1_history.json"
+        #    hist_csv = f"{gdrive_dir}/MobileNetv3_small_v1_history.csv"
+        #    with open(hist_json, "w") as f:
+        #        json.dump(history.history, f)
+        #    pd.DataFrame(history.history).to_csv(hist_csv, index=False)
+        #    mlflow.log_param("modelo_path_gdrive", gdrive_model_path)
+        #    mlflow.log_param("history_json_gdrive", hist_json)
+        #    mlflow.log_param("history_csv_gdrive", hist_csv)
+        #    with open("model_path.txt", "w") as f:
+        #        f.write(gdrive_model_path)
+        #    mlflow.log_artifact("model_path.txt")
+        #    print(f"Modelo salvo no Google Drive em: {gdrive_model_path}")
+        #    print(f"History salvo no Google Drive em: {hist_json} e {hist_csv}")
+        #    print("Caminhos registrados no MLflow (DagsHub)")
         
         # Matriz de Confusão
         log_top_confusions(y_true, y_pred, class_names)
+
 
