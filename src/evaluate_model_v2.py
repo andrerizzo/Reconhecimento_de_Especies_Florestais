@@ -263,4 +263,7 @@ def evaluate_model(model, history, test_dataset, class_names, run_name="model_ev
             print(f"Modelo salvo no Google Drive em: {gdrive_model_path}")
             print(f"History salvo no Google Drive em: {hist_json} e {hist_csv}")
             print("Caminhos registrados no MLflow (DagsHub)")
+        
+        # Matriz de Confusão
+        log_top_confusions(y_true, y_pred, class_names)
 
