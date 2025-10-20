@@ -307,6 +307,45 @@ def build_model_mobilenetv3_small_v3(formato_imagem=(224,224,3), num_classes=41,
 
 
 
+###  MODELO MOBILENETV3 LARGE COM PARÂMETRO PARA DESCOLGELAMENTO DE CAMADAS CONVOLUCIONAIS
+def build_model_mobilenetv3_large_v3(formato_imagem=(224,224,3), num_classes=41, trainable_layers=20):
+  '''
+    Modelo base: MobileNetV3 Small
+    Camadas convolucionais: Número variável de camadas descongeladas
+    Classificador: 
+              GlobalAveragePooling2D()
+              Dense(512, activation="relu")
+              Dropout(0.5)
+              Dense(256, activation="relu")
+              Dropout(0.4)
+              Dense(41, activation="softmax")
+
+  '''
+  # Carrega o modelo MobileNetV3 Large removendo as camadas densas
+  base_model = MobileNetV3Small(weights='imagenet',
+                           include_top=False,
+                           input_shape=formato_imagem)
+
+  # Descongela as últimas 'trainable_layers' camadas convolucionais
+  for layer in base_model.layers[-trainable_layers:]:
+    layer.trainable = True
+  
+  # Criação de duas camadas densas com 512 e 254 neurônios respectivamente
+  x = base_model.output
+  x = GlobalAveragePooling2D()(x)
+  x = Dense(512, activation="relu")(x)
+  x = Dropout(0.5)(x)
+  x = Dense(256, activation="relu")(x)
+  x = Dropout(0.4)(x)
+
+  # Camada de saída com 41 neurônios, isto é, um para cada espécie de madeira
+  classifier = Dense(num_classes, activation="softmax")(x)
+
+  model_mobilenetv3_small_v3 = Model(inputs=base_model.inputs, outputs=classifier)
+
+  return model_mobilenetv3_small_v3
+
+
 
 # -----------------------------------------------------------------------------
 #      Família EfficientNet
